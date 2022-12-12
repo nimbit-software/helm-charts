@@ -1,0 +1,65 @@
+apiVersion: v1
+entries:
+  apps:
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2022-12-12T12:04:50.511922837Z"
+    description: Apps of apps
+    digest: cec0b8986b94f0baa21b9fd184a61a34710bc49cb3543b8f6f1cbad9d3386826
+    name: apps
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/apps-0.1.0/apps-0.1.0.tgz
+    version: 0.1.0
+  cp-kafka-connect:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2022-12-12T12:04:50.721631006Z"
+    description: A Helm chart for Confluent Kafka Connect on Kubernetes
+    digest: 54eaee8544dd3ca3d3c26f6be9b0f4ebf1dbfbe7652980b4a7c6319f32488fc3
+    name: cp-kafka-connect
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/cp-kafka-connect-0.1.0/cp-kafka-connect-0.1.0.tgz
+    version: 0.1.0
+  cp-kafka-rest:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2022-12-12T12:04:50.942608379Z"
+    description: A Helm chart for Confluent Kafka REST Proxy on Kubernetes
+    digest: 3665c3b3e800d2c127ab4526a4ffbd5efa8db3aa31e308a4fda99e2dcb1ac375
+    name: cp-kafka-rest
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/cp-kafka-rest-0.1.0/cp-kafka-rest-0.1.0.tgz
+    version: 0.1.0
+  cp-ksql-server:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2022-12-12T12:04:51.156418159Z"
+    description: A Helm chart for Confluent KSQL Server on Kubernetes
+    digest: 40d5fbf1cf98247d6ac38114c7d3f3732d79eadf97edf0e118e5bf92c9117dc0
+    name: cp-ksql-server
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/cp-ksql-server-0.1.0/cp-ksql-server-0.1.0.tgz
+    version: 0.1.0
+  javaapp:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2022-12-12T12:04:51.397183167Z"
+    description: A Helm chart for Kubernetes
+    digest: 08347d77c313cd7504ff39cd48cdea940ed5185e209684d2869bd6926b3182b5
+    name: javaapp
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/javaapp-0.1.0/javaapp-0.1.0.tgz
+    version: 0.1.0
+  node:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2022-12-12T12:04:51.627679298Z"
+    description: A nimbit Helm chart for node applications
+    digest: 41b40d23f51e684794a925a2210c7e4bba73b7195bd8cef4a1e0dca8299c4be7
+    name: node
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/node-0.0.1/node-0.0.1.tgz
+    version: 0.0.1
+generated: "2022-12-12T12:04:51.627684598Z"
