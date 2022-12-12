@@ -1,0 +1,15 @@
+global:
+  namespace: default
+  env: development
+  helmDefault: false
+  valuesFile: values.yaml
+  spec:
+    project: nimbit
+    destination:
+      server: ''
+      namespace: default
+    source:
+      repoURL: ''
+      targetRevision: master
+
+argocdApplications: {}

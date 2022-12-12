@@ -1,0 +1,159 @@
+# Default values for Java.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: registry.gitlab.com/nimbit/nimbit/telemetry-query
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "0.0.4"
+
+imagePullSecrets:
+  - name: docker-registry
+nameOverride: "telemetry"
+fullnameOverride: "telemetry"
+
+lables: {}
+
+docker:
+  secret:
+    name: docker-registry
+    value: ewogICAgImF1dGhzIjogewogICAgICAgICJodHRwczovL3JlZ2lzdHJ5LmdpdGxhYi5jb20iOnsKICAgICAgICAgICAgInVzZXJuYW1lIjoiZ2l0bGFiK2RlcGxveS10b2tlbi04MTMzMTAiLAogICAgICAgICAgICAicGFzc3dvcmQiOiIxYWZfQXltRkx4YWtSTW9LVVBQQyIsCiAgICAgICAgICAgICJlbWFpbCI6ImlvdEBjcGFycy5kZSIsCiAgICAgICAgICAgICJhdXRoIjoiWjJsMGJHRmlLMlJsY0d4dmVTMTBiMnRsYmkwNE1UTXpNVEE2TVdGbVgwRjViVVpNZUdGclVrMXZTMVZRVUVNPSIKICAgIAl9CiAgICB9Cn0=
+
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+servicePort: 3500
+targetPort: server
+
+service:
+  enabled: true
+  annotations: {}
+  type: ClusterIP
+  port: 3500
+
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+   # oauth2-proxy config if auth should be handled by the proxy
+   # nginx.ingress.kubernetes.io/auth-url: https://oauth.flo.aws.nimbit.de/oauth2/auth
+   # nginx.ingress.kubernetes.io/auth-signin: https://oauth.flo.aws.nimbit.de/oauth2/start?rd$scheme://$host:$request_uri"
+  hosts:
+    - host: example.de
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: 
+  - secretName: tls-example-secret
+    hosts:
+      - example.de
+
+
+## Certificate settings
+certificate:
+  name: query-allreco-nimbit
+  secret: tls-query-allreco-nimbit
+  commonName: query.allreco.nimbit.de
+  dnsNames:
+    - query.allreco.nimbit.de
+  issuer:
+    kind: ClusterIssuer
+    name: le-clusterissuer
+
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+
+customEnv:
+  JAVA_OPTS:  -Xms1024m  -Xmx1024m
+  logging.level.root: debug
+  logging.level.org.springframework.jdbc.core: ERROR
+  logging.level.com.zaxxer.hikari.HikariConfig: DEBUG
+  logging.level.com.zaxxer.hikari.HikariConfig.pool.HikariPool: DEBUG
+  logging.level.org.hibernate: ERROR
+  logging.level.org.springframework.r2dbc: DEBUG
+  management.endpoint.health.probes.enabled: 'true'
+  management.endpoint.health.livenessState.enabled: 'true'
+  management.endpoint.health.readinessState.enabled: 'true'
+  server.port: 3500
+  server.contextPath: /
+  spring.jmx.enabled: 'true'
+  spring.jackson.default-property-inclusion: non_null
+  spring.jackson.deserialization.FAIL_ON_UNKNOWN_PROPERTIES: 'false'
+  spring.security.user.name: user
+  spring.security.user.password: user
+  spring.datasource-telemetry.driver-class-name: org.postgresql.Driver
+  spring.datasource-telemetry.jdbc-url: jdbc:postgresql://timescaledb.allreco.svc.cluster.local:34692/postgres
+  spring.datasource-telemetry.username: postgres
+  spring.datasource-telemetry.password: NfYQNBDZS9tbQ4kD
+  spring.datasource-telemetry.platform: postgresql
+  spring.datasource-telemetry.hikari.idle-timeout: 10000
+  spring.datasource-telemetry.hikari.maximum-pool-size: 10
+  spring.datasource-telemetry.hikari.minimum-idle: 5
+  spring.datasource-telemetry.hikari.pool-name: TelemetryHikariPool
+  spring.datasource-telemetry.hikari.readonly: 'true'
+  spring.datasource-ocb.driver-class-name: com.impossibl.postgres.jdbc.PGDriver
+  spring.datasource-ocb.jdbc-url: jdbc:pgsql://ec2-18-197-108-131.eu-central-1.compute.amazonaws.com:5432/postgres?schema=ocb&ssl.mode=Require
+  spring.datasource-ocb.username: tsdb
+  spring.datasource-ocb.password: bo8c9paom9wb7t2i
+  spring.datasource-ocb.platform: postgresql
+  spring.datasource-ocb.hikari.idle-timeout: 10000
+  spring.datasource-ocb.hikari.maximum-pool-size: 1
+  spring.datasource-ocb.hikari.minimum-idle: 5
+  spring.datasource-ocb.hikari.pool-name: OcbHikariPool
+  spring.datasource-ocb.hikari.readonly: 'true'
+  springdoc.api-docs.path: /api-docs
+  springdoc.swagger-ui.operationsSorter: method
+  springdoc.swagger-ui.path: /swagger-ui.html
+  mapbox.publickey: pk.eyJ1IjoibmltYml0IiwiYSI6ImNsMTBuc3E4ejBkc2czam1zeGl4OTE2b3UifQ.R_sxc_AvMKnGxc3S4AhIwA
+  auth.api.jwtkey: 'MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA0gEyoTS8SdX5uidrain0ld1f9XyRZaAHbpzVidftN0PSILQ2KN4kxsSQ/RBwNYDg2Y5wD+2DhmJb3UjeL8oeowzvo8WOta05dj8+OlNHl0ydR3f859leDVNsy8FQZvcGS+H6NbvjJL/igVZmt2RhD/1r9t+BdFoJNOd8kRS2WytFN98To1Xfwk1iyiF3wUTXd7PPyAnuTDi06IYSFk7YL0Yvv72xH+oDs1RY8772TNlB2i3oKRTPum2XmMJnARdAk+ViAOH/N0FV/d4UDn2hJI1FLNzMg2X0yFtES/Avg9kADFM2tA/Tyjx7MdTWqWQ/puyHJfNtWdhnAcRRzGkdJ6NsXB8SBf+fOpzPAy4mdy7vAhj2mB227q2hFojKeNZ7+ORheGgLQZa47FoV0+GjxLu5Pj3048VkYsdD+U0v1ZinSjG3ds1XFdIQ3aRFtqxl3kUyvP+Qup4hEVAObA75QPpeZmCemvtFWVKdu8AmODSIAu6NG1GimrCGYDx5NNj4Iz1bKBepmm+IhpeG9j8OYD7b+fkardU7+bxv5iiuxFVTL/m61F6rhi0kBJIJP6EgJ6WRYZfon2/H8MXmAcOMTKX1+4MHOuRns5inLeXtXB/X1A+SRiZ34VxD5spK8ybBP3OOrRs0pEP97eD+voVmsWwE7Ux3NPAYyyKfqFAZv9UCAwEAAQ=='
