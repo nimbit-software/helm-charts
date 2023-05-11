@@ -62,4 +62,15 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/node-0.0.1/node-0.0.1.tgz
     version: 0.0.1
-generated: "2022-12-12T12:04:51.627684598Z"
+  python-app:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2023-05-11T19:15:58.66162165Z"
+    description: A Helm chart for Kubernetes
+    digest: 2b6ea763e4e049d3c10dc4971555052a1afc7315de3782fc065bc5add395d234
+    name: python-app
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/python-app-0.1.0/python-app-0.1.0.tgz
+    version: 0.1.0
+generated: "2023-05-11T19:15:58.66162705Z"
