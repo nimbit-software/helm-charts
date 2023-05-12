@@ -1,6 +1,6 @@
 apiVersion: v2
 name: python-app
-description: A Helm chart for Kubernetes
+description: Python deployment chart. Tested with FastApi
 
 # A chart can be either an 'application' or a 'library' chart.
 #
