@@ -1,0 +1,217 @@
+{{- if .Values.nodered.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- with .Values.nodered.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ include "nimbit-cloud.node-red.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.node-red.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.nodered.replicaCount | default 1}}
+  {{- if .Values.nodered.deploymentStrategy }}
+  strategy:
+    type: {{ .Values.nodered.deploymentStrategy }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nimbit-cloud.node-red.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.nodered.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nimbit-cloud.node-red.selectorLabels" . | nindent 8 }}
+{{- if .Values.nodered.podLabels }}
+{{ toYaml .Values.nodered.podLabels | indent 8 }}
+{{- end }}
+    spec:
+      {{- with .Values.nodered.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "nimbit-cloud.node-red.serviceAccountName" . }}
+      {{- if .Values.nodered.podSecurityContext }}
+      securityContext:
+        {{- toYaml .Values.nodered.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodered.initContainers  }}
+      initContainers:
+      {{- with .Values.nodered.initContainers }}
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- end }}
+      containers:
+        {{- if .Values.nodered.extraSidecars }}
+        {{- toYaml .Values.nodered.extraSidecars  | nindent  8 }}
+        {{- end}}
+        {{- if .Values.nodered.sidecar.enabled }}
+        - env:
+          {{- if .Values.nodered.sidecar.extraEnv }}
+          {{- toYaml .Values.nodered.sidecar.extraEnv  | nindent 10 }}
+          {{- end }}
+            - name: METHOD
+              value: {{ .Values.nodered.sidecar.env.method }}
+            - name: SLEEP_TIME_SIDECAR
+              value: {{ .Values.nodered.sidecar.env.sleep_time_sidecar }}
+            - name: LABEL
+              value: {{ .Values.nodered.sidecar.env.label }}
+            - name: LABEL_VALUE
+              value: {{ .Values.nodered.sidecar.env.label_value | quote}}
+            - name: FOLDER
+              value: /data
+          {{- if .Values.nodered.sidecar.env.script }}
+            - name: SCRIPT
+              value: /app/{{ .Values.nodered.sidecar.env.script }}
+          {{- end }}
+            - name: URL
+              value: {{ printf "http://%s.%s.svc.cluster.local:%d" (include "nimbit-cloud.node-red.fullname" .) .Release.Namespace (.Values.nodered.service.port | int) }}
+          {{ if .Values.nodered.sidecar.env.username }}
+            - name: USERNAME
+              value: {{ .Values.nodered.sidecar.env.username }}
+          {{- end }}
+          {{- if or .Values.nodered.sidecar.env.password .Values.nodered.sidecar.env.passwordFromExistingSecret }}
+            - name: PASSWORD
+          {{- if .Values.nodered.sidecar.env.password }}
+              value: {{ .Values.nodered.sidecar.env.password | quote }}
+          {{- else if .Values.nodered.sidecar.env.passwordFromExistingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  key: {{ .Values.nodered.sidecar.env.passwordFromExistingSecret.key }}
+                  name: {{ .Values.nodered.sidecar.env.passwordFromExistingSecret.name }}
+          {{- end }}
+          {{- end }}
+          image: "{{ .Values.nodered.sidecar.image.registry }}/{{ .Values.nodered.sidecar.image.repository }}:{{ .Values.nodered.sidecar.image.tag }}"
+          imagePullPolicy: {{ .Values.nodered.sidecar.image.pullPolicy }}
+          name: nimbit-cloud.node-red-sidecar
+          {{- if .Values.nodered.sidecar.resources }}
+          resources:
+            {{- toYaml .Values.nodered.sidecar.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.nodered.sidecar.securityContext }}
+          securityContext:
+            {{- toYaml .Values.nodered.sidecar.securityContext | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /data
+              name: data
+            - name: flow-refresh-script
+              mountPath: /app/{{ .Values.nodered.sidecar.env.script }}
+              subPath: {{ .Values.nodered.sidecar.env.script }}
+          {{- if .Values.nodered.sidecar.volumeMounts }}
+          {{- with .Values.nodered.sidecar.volumeMounts }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+        - name: {{ .Chart.Name }}
+          {{- if .Values.nodered.securityContext }}
+          securityContext:
+            {{- toYaml .Values.nodered.securityContext | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.nodered.image.registry }}/{{ .Values.nodered.image.repository }}:{{ .Values.nodered.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.nodered.image.pullPolicy }}
+          {{- if or .Values.nodered.metrics.enabled .Values.nodered.env }}
+          env:
+          {{- if .Values.nodered.metrics.enabled}}
+            - name: PROMETHEUS_COLLECT_DEFAULT_METRICS
+              value: "true"
+            - name: PROMETHEUS_METRICS_PATH
+              value: {{ .Values.nodered.metrics.path | default "/metrics" }}
+          {{- end }}
+          {{- with .Values.nodered.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.nodered.envFrom }}
+          envFrom:
+          {{- with .Values.nodered.envFrom }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 1880
+              protocol: TCP
+          {{- with .Values.nodered.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.nodered.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- if and .Values.nodered.npmrc.enabled }}
+            - name: npmrc-volume
+              mountPath: /usr/src/nimbit-cloud.node-red/.npmrc
+              subPath: npmrc
+            {{- end }}
+            {{- if .Values.nodered.settings }}
+            - name: {{ .Values.nodered.settings.name }}
+              mountPath: /data/settings.js
+              subPath: settings.js
+            {{- end }}
+            {{- with .Values.nodered.extraVolumeMounts }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+            - name: data
+              mountPath: /data
+              {{- if .Values.nodered.persistence.subPath }}
+              subPath: {{ .Values.nodered.persistence.subPath }}
+              {{- end }}
+          {{- if .Values.nodered.resources }}
+          resources:
+            {{- toYaml .Values.nodered.resources | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- if and .Values.nodered.sidecar.enabled }}
+        - name: flow-refresh-script
+          configMap:
+            name: {{ include "nimbit-cloud.node-red.sidecarConfigMapName" . }}
+            defaultMode: 0777
+        {{- end }}
+        {{- with .Values.nodered.extraVolumes }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and .Values.nodered.npmrc.enabled }}
+        - name: npmrc-volume
+          configMap:
+            name: {{ include "nimbit-cloud.node-red.configMapName" . }}
+        {{- end }}
+        {{- if .Values.nodered.settings }}
+        - name: {{ .Values.nodered.settings.name }}
+          configMap:
+            name: {{ .Values.nodered.settings.configMapName }}
+        {{- end }}
+        - name: data
+          {{- if .Values.nodered.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.nodered.persistence.existingClaim }}{{ .Values.nodered.persistence.existingClaim }}{{- else }}{{ template "nimbit-cloud.node-red.fullname" . }}{{- end }}
+          {{- else }}
+          emptyDir: { }
+          {{ end }}
+      {{- with .Values.nodered.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodered.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodered.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nodered.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.nodered.terminationGracePeriodSeconds }}
+      {{- end }}
+      {{- end }}

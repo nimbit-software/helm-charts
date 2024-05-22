@@ -1,0 +1,102 @@
+{{- if .Values.dip.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nimbit-cloud.dip.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.dip.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.dip.autoscaling.enabled }}
+  replicas: {{ .Values.dip.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nimbit-cloud.dip.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.dip.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nimbit-cloud.dip.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.dip.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      {{- toYaml .Values.dip.volumes | default "" | nindent 8 }}
+      serviceAccountName: {{ include "nimbit-cloud.dip.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.dip.podSecurityContext | nindent 8 }}
+
+      initContainers:
+        - name: init-db
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: {{ default "nimbit-tsdb-ha" .Values.ocb.environment.DB_HOST | quote }}
+            - name: DB_USER
+              value: super-user
+            - name: DB_PORT
+              value: {{ default "5432" .Values.ocb.environment.DB_PORT | quote }}
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+              echo "Waiting for database to start..."
+              sleep 2
+              done
+            - echo "Database is ready"
+
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.dip.securityContext | nindent 12 }}
+          image: "{{ .Values.dip.image.repository }}:{{ .Values.dip.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.dip.image.pullPolicy }}
+          env:
+            - name: DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-dip
+                  key: uri
+           {{- range $key, $value := .Values.dip.environment }}
+            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+              {{- if kindIs "map" $value }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secretKeyRef.name | quote }}
+                  key: {{ $value.secretKeyRef.key | quote }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+            - name: DATABASE_URL
+              value: $(DB_URI)?schema=$(DIP_SCHEMA)&sslmode=$(DB_SSL)
+          ports:
+            - name: server
+              containerPort: {{ .Values.dip.servicePort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.dip.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.dip.volumeMounts | default "" | nindent 12 }}
+      {{- with .Values.dip.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dip.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dip.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

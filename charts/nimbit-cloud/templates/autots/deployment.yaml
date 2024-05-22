@@ -1,0 +1,136 @@
+{{- if .Values.autots.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nimbit-cloud.autots.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.autots.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autots.autoscaling.enabled }}
+  replicas: {{ .Values.autots.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nimbit-cloud.autots.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.autots.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nimbit-cloud.autots.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.autots.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      {{- toYaml .Values.autots.volumes | default "" | nindent 8 }}
+      serviceAccountName: {{ include "nimbit-cloud.autots.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.autots.podSecurityContext | nindent 8 }}
+
+      initContainers:
+        - name: init-db
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: {{ default "nimbit-tsdb-ha" .Values.ocb.environment.DB_HOST | quote }}
+            - name: DB_USER
+              value: super-user
+            - name: DB_PORT
+              value: {{ default "5432" .Values.ocb.environment.DB_PORT | quote }}
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+              echo "Waiting for database to start..."
+              sleep 2
+              done
+            - echo "Database is ready"
+
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.autots.securityContext | nindent 12 }}
+          image: "{{ .Values.autots.image.repository }}:{{ .Values.autots.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.autots.image.pullPolicy }}
+          env:
+            - name: DB_DEPLOYMENT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: name
+            - name: PG_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-tsdb
+                  key: host
+
+            - name: PG_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-tsdb
+                  key: port
+
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-tsdb
+                  key: user
+
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-tsdb
+                  key: password
+
+            - name: PG_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-tsdb
+                  key: dbname
+
+            {{- range $key, $value := .Values.autots.app.env }}
+            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+              {{- if kindIs "map" $value }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secretKeyRef.name | quote }}
+                  key: {{ $value.secretKeyRef.key | quote }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+          ports:
+            - name: server
+              containerPort: {{ .Values.autots.server.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: server
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: server
+          resources:
+            {{- toYaml .Values.autots.resources | nindent 12 }}
+      {{- with .Values.autots.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.autots.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.autots.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}

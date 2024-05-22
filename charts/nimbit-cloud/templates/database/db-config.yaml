@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+data:
+  name: {{ .Values.global.database.name | quote }}

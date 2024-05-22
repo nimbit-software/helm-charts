@@ -1,0 +1,25 @@
+{{- if .Values.nodered.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbit-cloud.node-red.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.node-red.labels" . | nindent 4 }}
+  {{- with .Values.nodered.service.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.nodered.service.type }}
+  ports:
+    - port: {{ .Values.nodered.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "nimbit-cloud.node-red.selectorLabels" . | nindent 4 }}
+    {{- end }}

@@ -1,0 +1,883 @@
+global:
+  certificate:
+    secretName: &certName tls-nimbit-secret
+  tenant: &tenant te_o1jfd3unyhlkgnrclo
+  environment: dev
+  baseDomain: nimbit.de
+  defaultUrl: &defaultUrl https://nightly.nimbit.de
+  database:
+    name: nimbit-dev
+
+supabase:
+  secret:
+    jwt:
+      anonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+      serviceKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q
+      secret: your-super-secret-jwt-token-with-at-least-32-characters-long
+    smtp:
+      username: your-mail@example.com
+      password: example123456
+    dashboard:
+      username: supabase
+      password: this_password_is_insecure_and_should_be_updated
+    db:
+      username: postgres
+      password: example123456
+      database: postgres
+    analytics:
+      apiKey: your-super-secret-and-long-logflare-key
+
+  db:
+    enabled: true
+    image:
+      tag: 15.1.0.147
+    livenessProbe:
+      exec:
+        command:
+          - pg_isready
+          - -U
+          - postgres
+      initialDelaySeconds: 3
+    persistence:
+      enabled: false
+
+  studio:
+    image:
+      tag: 20240326-5e5586d
+    environment:
+      STUDIO_DEFAULT_ORGANIZATION: "My Organization"
+      STUDIO_DEFAULT_PROJECT: "My Project"
+      SUPABASE_PUBLIC_URL: *defaultUrl
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+    livenessProbe:
+      httpGet:
+        path: /api/profile
+        port: 3000
+      initialDelaySeconds: 3
+
+  auth:
+    image:
+      tag: v2.143.0
+    environment:
+      API_EXTERNAL_URL: *defaultUrl
+      GOTRUE_SITE_URL: *defaultUrl
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMTP_ADMIN_EMAIL: "your-mail@example.com"
+      GOTRUE_SMTP_HOST: "smtp.example.com"
+      GOTRUE_SMTP_PORT: "587"
+      GOTRUE_SMTP_SENDER_NAME: "your-mail@example.com"
+
+  rest:
+    image:
+      tag: v12.0.1
+
+  realtime:
+    image:
+      tag: v2.27.5
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 4000
+      initialDelaySeconds: 3
+
+  meta:
+    image:
+      tag: v0.80.0
+
+  storage:
+    image:
+      tag: v0.46.4
+    livenessProbe:
+      httpGet:
+        path: /status
+        port: 5000
+      initialDelaySeconds: 3
+    persistence:
+      enabled: false
+
+  imgproxy:
+    image:
+      tag: v3.8.0
+    environment:
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+    livenessProbe:
+      exec:
+        command:
+          - imgproxy
+          - health
+      initialDelaySeconds: 3
+    persistence:
+      enabled: false
+
+  kong:
+    image:
+      repository: kong
+      tag: 2.8.1
+    environment:
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/kong.yml
+      KONG_LOG_LEVEL: info
+    ingress:
+      enabled: true
+      className: "nginx"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+      tls:
+        - secretName: tls-kong-secret
+          hosts:
+            - dev-test.supabase.nimbit.de
+      hosts:
+        - host: dev-test.supabase.nimbit.de
+          paths:
+            - path: /
+              pathType: Prefix
+
+  analytics:
+    image:
+      tag: 1.4.0
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 4000
+      initialDelaySeconds: 3
+
+  vector:
+    image:
+      tag: 0.34.0-alpine
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 9001
+      initialDelaySeconds: 3
+    ## Vector requires logs from the control plane to function.
+    ## This is normally stored in /var/log/pods
+    ## Modify these values according to your environment.
+    volumeMounts:
+      - name: pod-logs
+        mountPath: /var/log/pods
+    volumes:
+      - name: pod-logs
+        hostPath:
+          path: /var/log/pods
+
+  functions:
+    image:
+      tag: v1.41.2
+
+
+####################################################################################################
+# NIMIBT APPS
+####################################################################################################
+
+
+certificate:
+  enabled: true
+  name: nimbit-cloud-cert
+  issuer: le-clusterissuer
+  secretName: tls-nimbit-secret
+  dnsNames:
+    - "nightly.nimbit.de"
+
+
+ocb:
+  enabled: true
+  nameOverride: "nimbit-cloud-ocb"
+  fullnameOverride: "nimbit-cloud-ocb"
+
+  replicaCount: 1
+
+  image:
+    repository:
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  mode: multi-tenant # multi-tenant | single-tenant
+
+  imagePullSecrets: [ ]
+
+  db:
+    rls:
+      secret: ""
+      secretKey: "uri"
+    prisma:
+      secret: ""
+      secretKey: "uri"
+
+  lables: { }
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: { }
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  podAnnotations: { }
+
+  podSecurityContext: { }
+  # fsGroup: 2000
+
+  securityContext: { }
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+  servicePort: 3000
+
+  service:
+    annotations: { }
+    enabled: true
+    type: ClusterIP
+    port: 3000
+
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+  nodeSelector: { }
+
+  tolerations: [ ]
+
+  affinity: { }
+
+  environment:
+    PORT: 3000
+
+
+
+dip:
+  enabled: true
+  nameOverride: nimbit-cloud-dip
+  fullnameOverride: nimbit-cloud-dip
+
+  replicaCount: 1
+
+  image:
+    repository:
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  mode: multi-tenant # multi-tenant | single-tenant
+
+  imagePullSecrets: [ ]
+
+
+  lables: { }
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: { }
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  podAnnotations: { }
+
+  podSecurityContext: { }
+  # fsGroup: 2000
+
+  securityContext: { }
+    # capabilities:
+    #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+  servicePort: 3000
+
+  service:
+    annotations: { }
+    enabled: true
+    targetPort: server
+    type: ClusterIP
+    port: 80
+
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+  nodeSelector: { }
+
+  tolerations: [ ]
+
+  affinity: { }
+
+  environment: { }
+
+autots:
+  enabled: true
+  nameOverride: nimbit-cloud-autots
+  fullnameOverride: nimbit-cloud-autots
+
+  replicaCount: 1
+
+  image:
+    repository:
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  mode: multi-tenant # multi-tenant | single-tenant
+
+  imagePullSecrets: [ ]
+
+  server:
+    port: 8080
+
+  service:
+    enabled: true
+    targetPort: server
+    type: ClusterIP
+    port: 8080
+
+  lables: { }
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: { }
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  podAnnotations: { }
+
+  podSecurityContext: { }
+  # fsGroup: 2000
+
+  securityContext: { }
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+  servicePort: 3001
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+
+  nodeSelector: { }
+
+  tolerations: [ ]
+
+  affinity: { }
+
+  configurationOverrides: { }
+
+nbq:
+  enabled: true
+  nameOverride: nimbit-cloud-nbq
+  fullnameOverride: nimbit-cloud-nbq
+
+  replicaCount: 1
+
+  image:
+    repository: nginx
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+  imagePullSecrets: [ ]
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: { }
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  podAnnotations: { }
+
+  podSecurityContext: { }
+  # fsGroup: 2000
+
+  securityContext: { }
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+  server:
+    port: 80
+
+  service:
+    annotations: { }
+    enabled: true
+    targetPort: server
+    type: ClusterIP
+    port: 80
+
+
+  app:
+    env: # env variables  as key value pairs
+      test: value
+    envSecrets: # secret values multiple secrets are possible
+      - name: secret1
+        values:
+          - key: username
+            value: myusername1
+          - key: password
+            value: mypassword1
+      - name: secret2
+        values:
+          - key: username
+            value: myusername2
+          - key: password
+            value: mypassword2
+
+
+
+  resources: { }
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+  nodeSelector: { }
+
+  tolerations: [ ]
+
+  affinity: { }
+
+  health:
+    readiness:
+      path: "/health/readiness"
+    liveness:
+      path: "/health/liveness"
+
+
+breeze:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: registry.gitlab.com/nimbit-softwares/iot/iot-breeze
+    pullPolicy: IfNotPresent
+    tag: 0.3.14
+
+  imagePullSecrets:
+    - name: registry-credentials
+
+  lables: { }
+
+  servicePort: 3000
+
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: { }
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  service:
+    annotations: { }
+    enabled: true
+    type: ClusterIP
+    targetPort: server
+    port: 3000
+
+
+  resources:
+    { }
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+  nodeSelector: { }
+
+  tolerations: [ ]
+
+  affinity: { }
+
+  environment: { }
+
+
+nodered:
+  enabled: true
+
+  deploymentStrategy: ""
+  image:
+    registry: docker.io
+    repository: nimbit/node-red
+    pullPolicy: IfNotPresent
+    tag: "0.10.4"
+
+
+  # -- The image pull secrets
+  imagePullSecrets:
+    - name: registry-credentials
+  # -- Provide a name in place of node-red
+  nameOverride: ""
+  # -- String to fully override "node-red.fullname"
+  fullnameOverride: ""
+
+
+
+  # -- node-red env, see more environment variables in the [node-red documentation](https://nodered.org/docs/getting-started/docker)
+  env:
+    - name: DB_URI
+      valueFrom:
+        secretKeyRef:
+          name: nimbit-tsdb-pguser-nodered
+          key: uri
+    - name: HOST
+      value: nimbit-cloud-node-red:1880
+    - name: PG_FLOW_STORAGE
+      value: $(DB_URI)?connection_limit=5&schema=node_red
+    - name: PG_FLOW_STORAGE_TENANT
+      value: *tenant
+    - name: GOTRUE_URL
+      value:  http://nimbit-cloud-supabase-auth:9999
+  envFrom: [ ]
+
+
+  serviceAccount:
+    create: true
+    annotations: { }
+    name: ""
+
+  # -- Pod annotations
+  podAnnotations: { }
+
+  # -- Deployment annotations
+  deploymentAnnotations: { }
+
+  # -- Pod Security Context see [values.yaml](values.yaml)
+  podSecurityContext:
+    # -- node-red group is 1000
+    fsGroup: 1000
+    # -- node-red user is 1000
+    runAsUser: 1000
+
+  # -- Security Context see [values.yaml](values.yaml)
+  securityContext:
+    privileged: false
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsGroup: 10003
+    runAsUser: 10003
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+        - ALL
+
+  service:
+    type: ClusterIP
+    port: 1880
+    annotations: { }
+
+  #  Enable Service-Monitor for node-red
+  metrics:
+    # -- Deploy metrics service
+    enabled: false
+    path: /metrics
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: false
+      # -- Prometheus basicAuth configuration for ServiceMonitor endpoint
+      basicAuth: { }
+      # -- Prometheus ServiceMonitor interval
+      interval: 30s
+      # -- Prometheus [RelabelConfigs] to apply to samples before scraping
+      relabelings: [ ]
+      # -- Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+      metricRelabelings: [ ]
+      # -- Prometheus ServiceMonitor selector
+      selector: { }
+      # prometheus: kube-prometheus
+
+      # -- Prometheus ServiceMonitor namespace
+      namespace: "" # "monitoring"
+      # -- Prometheus ServiceMonitor labels
+      additionalLabels: { }
+
+  persistence:
+    # -- Use persistent volume to store data
+    enabled: false
+    ## node-red data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # -- Type of persistent volume claim
+    # storageClass: "-"
+    ##
+    ## If you want to reuse an existing claim, you can pass the name of the PVC using
+    ## the existingClaim variable
+    # -- Use an existing PVC to persist data
+    # existingClaim: your-claim
+    # -- Persistence access mode
+    accessMode: ReadWriteOnce
+    # -- Size of persistent volume claim
+    size: 5Gi
+    # -- ## Keep a created Persistent volume claim when uninstalling the helm chart (default: false)
+    keepPVC: false
+
+  # -- containers which are run before the app containers are started
+  initContainers:
+    - name: init-db
+      image: postgres:15-alpine
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: DB_HOST
+          value: "nimbit-tsdb-ha"
+        - name: DB_USER
+          value: super-user
+        - name: DB_PORT
+          value: "5432"
+      command: [ "/bin/sh", "-c" ]
+      args:
+        - |
+          until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+          echo "Waiting for database to start..."
+          sleep 2
+          done
+        - echo "Database is ready"
+
+  # -- Liveness probe for the Deployment
+  livenessProbe:
+    httpGet:
+      path: /node-red/
+      port: http
+
+  # -- Readiness probe for the Deployment
+  readinessProbe:
+    httpGet:
+      path: /node-red/
+      port: http
+
+  # -- CPU/Memory resource requests/limits
+  resources:
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    limits:
+      cpu: 500m
+      memory: 5123Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  npmrc:
+    # -- Enable custom npmrc config
+    enabled: false
+    # -- Configuration to use any compatible registry
+    registry: "https://registry.npmjs.org"
+    # -- Configuration to add custom npmrc config
+    content: |
+      # Custom npmrc config
+
+  # -- You can configure node-red using a settings file. default: {}
+  settings:
+  # Details about the content of the settings.js, you can lookup under
+  # https://nodered.org/docs/user-guide/runtime/settings-file
+  # The ConfigMap should already exist and the key must be named `settings.js`
+    name: node-red-settings-cm
+    configMapName: node-red-settings-cm
+
+  # -- Labels to add to the node-red pod. default: {}
+  podLabels: { }
+
+  # -- You can configure extra sidecars containers to run alongside the node-red pod. default: []
+  extraSidecars: [ ]
+  #  - name: sidecar-example
+  #    image: busybox
+  #    command: ["/bin/sh", "-c", "echo hello from sidecar"]
+
+
+  ## -- Enable this and set the rules: to whatever custom rules you want for the Cluster Role resource.
+  clusterRoleRules:
+    # -- Enable custom rules for the application controller's ClusterRole resource default: false
+    enabled: false
+    # -- List of custom rules for the application controller's ClusterRole resource default: []
+    rules: [ ]
+
+  # Sidecar that collect the configmaps with specified label and stores the included files into the given folder
+  sidecar:
+    # -- Enable the sidecar
+    enabled: false
+    # Env variables to pass to the sidecar
+    env:
+      # -- Set the sleep time for refresh script
+      sleep_time_sidecar: 5s
+      # -- If METHOD is set to LIST, the sidecar will just list config-maps/secrets and exit. With SLEEP it will list all config-maps/secrets, then sleep for SLEEP_TIME seconds. Anything else will continuously watch for changes (see https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes).
+      method: watch
+      # -- Label that should be used for filtering
+      label: node-red-settings
+      # -- The value for the label you want to filter your resources on. Don't set a value to filter by any value
+      label_value: "1"
+      # -- Absolute path to shell script to execute after a configmap got reloaded.
+      script: flow_refresh.py
+      # The username for the API Call, check node-red documentation for more information
+      username: ""
+      # -- Password as key value pair
+      password: ""
+      # -- Password from existing secret
+      passwordFromExistingSecret: { }
+      # -- Name of the secret that contains the password
+      #  name: node-red-api-admin-password
+      # -- Key of the secret that contains the password
+      #  key: password
+    # -- Extra Node-Modules that will be installed  from the sidecar script
+    extraNodeModules: [ ]
+    # -- Extra Environments for the sidecar
+    extraEnv: [ ]
+    # -- Resources for the sidecar
+    resources: { }
+    # -- Security context for the sidecar
+    securityContext: { }
+    #  Image for the sidecar
+    image:
+      # -- The image registry to pull the sidecar from
+      registry: quay.io
+      # -- The image repository to pull from
+      repository: kiwigrid/k8s-sidecar
+      # -- The image tag to pull, default: `1.27.1`
+      tag: 1.27.1
+      # -- The image pull policy, default: `IfNotPresent`
+      pullPolicy: IfNotPresent
+    # -- The extra volume mounts for the sidecar
+    volumeMounts: [ ]
+
+
+
+tsdb:
+  enabled: true
+  name: ts-hippo
+  image: nimbit/crunchy-supabase-ts-postgis:ubi8-15.4-1
+  imagePullPolicy: Always
+  postgresVersion: 15
+  instance:
+    name: instance1
+    replicas: 1
+    resources:
+      limits:
+        cpu: 0.5
+        memory: 1Gi
+    walVolumeClaimSpec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Gi
+    dataVolumeClaimSpec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 8Gi
+  backups:
+    pgbackrest:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.49-0
+      repo:
+        name: repo1
+        volume:
+          volumeClaimSpec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+
+  databaseInitSQL:
+    key: init.sql
+    name: supabase-ts-init-sql
+
+  patroni:
+    dynamicConfiguration:
+      synchronous_mode: true
+      postgresql:
+        parameters:
+          shared_preload_libraries: pg_cron,pg_net,ltree,supautils,timescaledb
+          cron.database_name: postgres
+          synchronous_commit: "on"
+          shared_buffers: 8028MB
+          effective_cache_size: 24084MB
+          maintenance_work_mem: 2047MB
+          work_mem: 10275kB
+          max_connections: 250
+          timescaledb.max_background_workers: 2
+          max_worker_processes: 27
+          max_parallel_workers_per_gather: 4
+          max_parallel_workers: 8
+          wal_buffers: 16MB
+          min_wal_size: 512MB
+          max_wal_size: 1GB
+          default_statistics_target: 500
+          random_page_cost: 1.1
+          checkpoint_completion_target: 0.9
+          max_locks_per_transaction: 256
+          autovacuum_max_workers: 10
+          autovacuum_naptime: 10
+          effective_io_concurrency: 256
+
+  proxy:
+    pgBouncer:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbouncer:ubi8-1.22-0
+
+  monitoring:
+    pgmonitor:
+      exporter:
+        image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres-exporter:ubi8-5.5.2-0

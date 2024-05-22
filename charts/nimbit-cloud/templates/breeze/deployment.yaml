@@ -1,0 +1,84 @@
+{{- if .Values.breeze.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nimbit-cloud.breeze.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.breeze.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.breeze.autoscaling.enabled }}
+  replicas: {{ .Values.breeze.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nimbit-cloud.breeze.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.breeze.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nimbit-cloud.breeze.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.breeze.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      {{- toYaml .Values.breeze.volumes | default "" | nindent 8 }}
+      serviceAccountName: {{ include "nimbit-cloud.breeze.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.breeze.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.breeze.securityContext | nindent 12 }}
+          image: "{{ .Values.breeze.image.repository }}:{{ .Values.breeze.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.breeze.image.pullPolicy }}
+          env:
+           {{- range $key, $value := .Values.breeze.environment }}
+            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+              {{- if kindIs "map" $value }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secretKeyRef.name | quote }}
+                  key: {{ $value.secretKeyRef.key | quote }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                {{- if .Values.supabase.secret.jwt.secretRef }}
+                  name: {{ .Values.supabase.secret.jwt.secretRef }}
+                  key: {{ .Values.supabase.secret.jwt.secretRefKey.secret | default "secret" }}
+                            {{- else }}
+                  name: {{ include "supabase.secret.jwt" . }}
+                  key: anonKey
+               {{- end }}
+          ports:
+            - name: server
+              containerPort: {{ .Values.breeze.servicePort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.breeze.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.breeze.volumeMounts | default "" | nindent 12 }}
+      {{- with .Values.breeze.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.breeze.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.breeze.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

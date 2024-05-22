@@ -1,0 +1,1012 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tsdb-init-sql
+data:
+  init.sql: |
+    SET statement_timeout = 0;
+    SET lock_timeout = 0;
+    SET idle_in_transaction_session_timeout = 0;
+    SET client_encoding = 'UTF8';
+    SET standard_conforming_strings = on;
+    SELECT pg_catalog.set_config('search_path', '', false);
+    SET check_function_bodies = false;
+    SET xmloption = content;
+    SET client_min_messages = warning;
+    SET row_security = off;
+
+    --
+    -- Name: auth; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS auth;
+
+
+    --
+    -- Name: extensions; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+
+    CREATE SCHEMA IF NOT EXISTS extensions;
+
+
+    --
+    -- Name: graphql; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS graphql;
+
+
+    --
+    -- Name: graphql_public; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS graphql_public;
+
+
+    --
+    -- Name: pgbouncer; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS pgbouncer;
+
+
+    --
+    -- Name: pgsodium; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS pgsodium;
+
+
+    --
+    -- Name: pgsodium; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS pgsodium WITH SCHEMA pgsodium;
+
+
+    --
+    -- Name: EXTENSION pgsodium; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION pgsodium IS 'Pgsodium is a modern cryptography library for Postgres.';
+
+
+    --
+    -- Name: realtime; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS realtime;
+
+
+    --
+    -- Name: storage; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS storage;
+
+
+    --
+    -- Name: vault; Type: SCHEMA; Schema: -; Owner: -
+    --
+
+    CREATE SCHEMA IF NOT EXISTS vault;
+
+
+    --
+    -- Name: pg_graphql; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS pg_graphql WITH SCHEMA graphql;
+
+
+    --
+    -- Name: EXTENSION pg_graphql; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION pg_graphql IS 'pg_graphql: GraphQL support';
+
+
+    --
+    -- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA extensions;
+
+
+    --
+    -- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
+
+
+    --
+    -- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
+
+    --
+    -- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
+    --
+    -- Name: pgjwt; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS pgjwt WITH SCHEMA extensions;
+
+
+    --
+    -- Name: EXTENSION pgjwt; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION pgjwt IS 'JSON Web Token API for Postgresql';
+
+
+    --
+    -- Name: supabase_vault; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
+
+
+    --
+    -- Name: EXTENSION supabase_vault; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION supabase_vault IS 'Supabase Vault Extension';
+
+
+    --
+    -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
+    --
+
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+
+
+    --
+    -- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: -
+    --
+
+    COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
+
+
+
+    --
+    -- Name: grant_pg_cron_access(); Type: FUNCTION; Schema: extensions; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION extensions.grant_pg_cron_access() RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    BEGIN
+        IF EXISTS (SELECT
+                   FROM pg_event_trigger_ddl_commands() AS ev
+                            JOIN pg_extension AS ext
+                                 ON ev.objid = ext.oid
+                   WHERE ext.extname = 'pg_cron')
+        THEN
+            grant usage on schema cron to postgres with grant option;
+
+            alter default privileges in schema cron grant all on tables to postgres with grant option;
+            alter default privileges in schema cron grant all on functions to postgres with grant option;
+            alter default privileges in schema cron grant all on sequences to postgres with grant option;
+
+            alter default privileges for user "supabase-admin" in schema cron grant all
+                on sequences to postgres with grant option;
+            alter default privileges for user "supabase-admin" in schema cron grant all
+                on tables to postgres with grant option;
+            alter default privileges for user "supabase-admin" in schema cron grant all
+                on functions to postgres with grant option;
+
+            grant all privileges on all tables in schema cron to postgres with grant option;
+            revoke all on table cron.job from postgres;
+            grant select on table cron.job to postgres with grant option;
+        END IF;
+    END;
+    $$;
+
+
+    --
+    -- Name: FUNCTION grant_pg_cron_access(); Type: COMMENT; Schema: extensions; Owner: -
+    --
+
+    COMMENT ON FUNCTION extensions.grant_pg_cron_access() IS 'Grants access to pg_cron';
+
+
+    --
+    -- Name: grant_pg_graphql_access(); Type: FUNCTION; Schema: extensions; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION extensions.grant_pg_graphql_access() RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $_$
+    DECLARE
+        func_is_graphql_resolve bool;
+    BEGIN
+        func_is_graphql_resolve = (SELECT n.proname = 'resolve'
+                                   FROM pg_event_trigger_ddl_commands() AS ev
+                                            LEFT JOIN pg_catalog.pg_proc AS n
+                                                      ON ev.objid = n.oid);
+
+        IF func_is_graphql_resolve
+        THEN
+            -- Update public wrapper to pass all arguments through to the pg_graphql resolve func
+            DROP FUNCTION IF EXISTS graphql_public.graphql;
+            create or replace function graphql_public.graphql(
+                "operationName" text default null,
+                query text default null,
+                variables jsonb default null,
+                extensions jsonb default null
+            )
+                returns jsonb
+                language sql
+            as
+            $$
+            select graphql.resolve(
+                           query := query,
+                           variables := coalesce(variables, '{}'),
+                           "operationName" := "operationName",
+                           extensions := extensions
+                   );
+            $$;
+
+            -- This hook executes when `graphql.resolve` is created. That is not necessarily the last
+            -- function in the extension so we need to grant permissions on existing entities AND
+            -- update default permissions to any others that are created after `graphql.resolve`
+            grant usage on schema graphql to postgres, anon, authenticated, "service-role";
+            grant select on all tables in schema graphql to postgres, anon, authenticated, "service-role";
+            grant execute on all functions in schema graphql to postgres, anon, authenticated, "service-role";
+            grant all on all sequences in schema graphql to postgres, anon, authenticated, "service-role";
+            alter default privileges in schema graphql grant all on tables to postgres, anon, authenticated, "service-role";
+            alter default privileges in schema graphql grant all on functions to postgres, anon, authenticated, "service-role";
+            alter default privileges in schema graphql grant all on sequences to postgres, anon, authenticated, "service-role";
+
+            -- Allow postgres role to allow granting usage on graphql and graphql_public schemas to custom roles
+            grant usage on schema graphql_public to postgres with grant option;
+            grant usage on schema graphql to postgres with grant option;
+        END IF;
+
+    END;
+    $_$;
+
+
+    --
+    -- Name: FUNCTION grant_pg_graphql_access(); Type: COMMENT; Schema: extensions; Owner: -
+    --
+
+    COMMENT ON FUNCTION extensions.grant_pg_graphql_access() IS 'Grants access to pg_graphql';
+
+
+    --
+    -- Name: grant_pg_net_access(); Type: FUNCTION; Schema: extensions; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION extensions.grant_pg_net_access() RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    BEGIN
+        IF EXISTS (SELECT 1
+                   FROM pg_event_trigger_ddl_commands() AS ev
+                            JOIN pg_extension AS ext
+                                 ON ev.objid = ext.oid
+                   WHERE ext.extname = 'pg_net')
+        THEN
+            IF NOT EXISTS (SELECT 1
+                           FROM pg_roles
+                           WHERE rolname = 'supabase-functions-admin')
+            THEN
+                CREATE USER "supabase-functions-admin" NOINHERIT CREATEROLE LOGIN NOREPLICATION;
+            END IF;
+
+            GRANT USAGE ON SCHEMA net TO "supabase-functions-admin", postgres, anon, authenticated, "service-role";
+
+            ALTER function net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) SECURITY DEFINER;
+            ALTER function net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) SECURITY DEFINER;
+
+            ALTER function net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) SET search_path = net;
+            ALTER function net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) SET search_path = net;
+
+            REVOKE ALL ON FUNCTION net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) FROM PUBLIC;
+            REVOKE ALL ON FUNCTION net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) FROM PUBLIC;
+
+            GRANT EXECUTE ON FUNCTION net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) TO "supabase-functions-admin", postgres, anon, authenticated, "service-role";
+            GRANT EXECUTE ON FUNCTION net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) TO "supabase-functions-admin", postgres, anon, authenticated, "service-role";
+        END IF;
+    END;
+    $$;
+
+
+    --
+    -- Name: FUNCTION grant_pg_net_access(); Type: COMMENT; Schema: extensions; Owner: -
+    --
+
+    COMMENT ON FUNCTION extensions.grant_pg_net_access() IS 'Grants access to pg_net';
+
+
+    --
+    -- Name: pgrst_ddl_watch(); Type: FUNCTION; Schema: extensions; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION extensions.pgrst_ddl_watch() RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    DECLARE
+        cmd record;
+    BEGIN
+        FOR cmd IN SELECT * FROM pg_event_trigger_ddl_commands()
+            LOOP
+                IF cmd.command_tag IN (
+                                       'CREATE SCHEMA', 'ALTER SCHEMA', 'CREATE TABLE', 'CREATE TABLE AS',
+                                       'SELECT INTO', 'ALTER TABLE', 'CREATE FOREIGN TABLE', 'ALTER FOREIGN TABLE',
+                                       'CREATE VIEW', 'ALTER VIEW', 'CREATE MATERIALIZED VIEW',
+                                       'ALTER MATERIALIZED VIEW', 'CREATE FUNCTION', 'ALTER FUNCTION', 'CREATE TRIGGER',
+                                       'CREATE TYPE', 'ALTER TYPE', 'CREATE RULE', 'COMMENT'
+                    )
+                    -- don't notify in case of CREATE TEMP table or other objects created on pg_temp
+                    AND cmd.schema_name is distinct from 'pg_temp'
+                THEN
+                    NOTIFY pgrst, 'reload schema';
+                END IF;
+            END LOOP;
+    END;
+    $$;
+
+
+    --
+    -- Name: pgrst_drop_watch(); Type: FUNCTION; Schema: extensions; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION extensions.pgrst_drop_watch() RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    DECLARE
+        obj record;
+    BEGIN
+        FOR obj IN SELECT * FROM pg_event_trigger_dropped_objects()
+            LOOP
+                IF obj.object_type IN (
+                                       'schema', 'table', 'foreign table', 'view', 'materialized view', 'function',
+                                       'trigger', 'type', 'rule'
+                    )
+                    AND obj.is_temporary IS false -- no pg_temp objects
+                THEN
+                    NOTIFY pgrst, 'reload schema';
+                END IF;
+            END LOOP;
+    END;
+    $$;
+
+
+    --
+    -- Name: set_graphql_placeholder(); Type: FUNCTION; Schema: extensions; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION extensions.set_graphql_placeholder() RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $_$
+    DECLARE
+        graphql_is_dropped bool;
+    BEGIN
+        graphql_is_dropped = (SELECT ev.schema_name = 'graphql_public'
+                              FROM pg_event_trigger_dropped_objects() AS ev
+                              WHERE ev.schema_name = 'graphql_public');
+
+        IF graphql_is_dropped
+        THEN
+            create or replace function graphql_public.graphql(
+                "operationName" text default null,
+                query text default null,
+                variables jsonb default null,
+                extensions jsonb default null
+            )
+                returns jsonb
+                language plpgsql
+            as
+            $$
+            DECLARE
+                server_version float;
+            BEGIN
+                server_version = (SELECT (SPLIT_PART((select version()), ' ', 2))::float);
+
+                IF server_version >= 14 THEN
+                    RETURN jsonb_build_object(
+                            'errors', jsonb_build_array(
+                                    jsonb_build_object(
+                                            'message', 'pg_graphql extension is not enabled.'
+                                    )
+                                      )
+                           );
+                ELSE
+                    RETURN jsonb_build_object(
+                            'errors', jsonb_build_array(
+                                    jsonb_build_object(
+                                            'message',
+                                            'pg_graphql is only available on projects running Postgres 14 onwards.'
+                                    )
+                                      )
+                           );
+                END IF;
+            END;
+            $$;
+        END IF;
+
+    END;
+    $_$;
+
+
+    --
+    -- Name: FUNCTION set_graphql_placeholder(); Type: COMMENT; Schema: extensions; Owner: -
+    --
+
+    COMMENT ON FUNCTION extensions.set_graphql_placeholder() IS 'Reintroduces placeholder function for graphql_public.graphql';
+
+
+
+    --
+    -- Name: secrets_encrypt_secret_secret(); Type: FUNCTION; Schema: vault; Owner: -
+    --
+
+    CREATE OR REPLACE FUNCTION vault.secrets_encrypt_secret_secret() RETURNS trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    BEGIN
+        new.secret = CASE
+                         WHEN new.secret IS NULL THEN NULL
+                         ELSE
+                             CASE
+                                 WHEN new.key_id IS NULL THEN NULL
+                                 ELSE pg_catalog.encode(
+                                         pgsodium.crypto_aead_det_encrypt(
+                                                 pg_catalog.convert_to(new.secret, 'utf8'),
+                                                 pg_catalog.convert_to((new.id::text || new.description::text ||
+                                                                        new.created_at::text ||
+                                                                        new.updated_at::text)::text, 'utf8'),
+                                                 new.key_id::uuid,
+                                                 new.nonce
+                                         ),
+                                         'base64') END END;
+        RETURN new;
+    END;
+    $$;
+
+
+    SET default_tablespace = '';
+
+    SET default_table_access_method = heap;
+
+
+
+    --
+    -- Name: decrypted_secrets; Type: VIEW; Schema: vault; Owner: -
+    --
+
+    CREATE OR REPLACE VIEW vault.decrypted_secrets AS
+    SELECT secrets.id,
+           secrets.name,
+           secrets.description,
+           secrets.secret,
+           CASE
+               WHEN (secrets.secret IS NULL) THEN NULL::text
+               ELSE
+                   CASE
+                       WHEN (secrets.key_id IS NULL) THEN NULL::text
+                       ELSE convert_from(pgsodium.crypto_aead_det_decrypt(decode(secrets.secret, 'base64'::text),
+                                                                          convert_to(
+                                                                                  ((((secrets.id)::text || secrets.description) ||
+                                                                                    (secrets.created_at)::text) ||
+                                                                                   (secrets.updated_at)::text),
+                                                                                  'utf8'::name), secrets.key_id,
+                                                                          secrets.nonce), 'utf8'::name)
+                       END
+               END AS decrypted_secret,
+           secrets.key_id,
+           secrets.nonce,
+           secrets.created_at,
+           secrets.updated_at
+    FROM vault.secrets;
+
+
+
+    --
+    -- Name: issue_graphql_placeholder; Type: EVENT TRIGGER; Schema: -; Owner: -
+    --
+    DROP EVENT TRIGGER IF EXISTS issue_graphql_placeholder;
+    CREATE EVENT TRIGGER issue_graphql_placeholder ON sql_drop
+        WHEN TAG IN ('DROP EXTENSION')
+    EXECUTE FUNCTION extensions.set_graphql_placeholder();
+
+
+    --
+    -- Name: issue_pg_cron_access; Type: EVENT TRIGGER; Schema: -; Owner: -
+    --
+    DROP EVENT TRIGGER IF EXISTS issue_pg_cron_access;
+    CREATE EVENT TRIGGER issue_pg_cron_access ON ddl_command_end
+        WHEN TAG IN ('CREATE EXTENSION')
+    EXECUTE FUNCTION extensions.grant_pg_cron_access();
+
+
+    --
+    -- Name: issue_pg_graphql_access; Type: EVENT TRIGGER; Schema: -; Owner: -
+    --
+    DROP EVENT TRIGGER IF EXISTS issue_pg_graphql_access;
+    CREATE EVENT TRIGGER issue_pg_graphql_access ON ddl_command_end
+        WHEN TAG IN ('CREATE FUNCTION')
+    EXECUTE FUNCTION extensions.grant_pg_graphql_access();
+
+
+    --
+    -- Name: issue_pg_net_access; Type: EVENT TRIGGER; Schema: -; Owner: -
+    --
+    DROP EVENT TRIGGER IF EXISTS issue_pg_net_access;
+    CREATE EVENT TRIGGER issue_pg_net_access ON ddl_command_end
+        WHEN TAG IN ('CREATE EXTENSION')
+    EXECUTE FUNCTION extensions.grant_pg_net_access();
+
+
+    --
+    -- Name: pgrst_ddl_watch; Type: EVENT TRIGGER; Schema: -; Owner: -
+    --
+    DROP EVENT TRIGGER IF EXISTS pgrst_ddl_watch;
+    CREATE EVENT TRIGGER pgrst_ddl_watch ON ddl_command_end
+    EXECUTE FUNCTION extensions.pgrst_ddl_watch();
+
+
+    --
+    -- Name: pgrst_drop_watch; Type: EVENT TRIGGER; Schema: -; Owner: -
+    --
+    DROP EVENT TRIGGER IF EXISTS pgrst_drop_watch;
+    CREATE EVENT TRIGGER pgrst_drop_watch ON sql_drop
+    EXECUTE FUNCTION extensions.pgrst_drop_watch();
+
+
+    --
+    -- PostgreSQL database dump complete
+    --
+
+
+    --
+    -- Dbmate schema migrations
+    --
+
+
+    --##############################################################################
+    -- INIT SCHEMAS
+    --##############################################################################
+    -- migrate:up
+
+
+    -- Supabase super admin
+    -- create user "supabase-admin";
+    -- alter user  "supabase-admin" with superuser createdb createrole replication bypassrls;
+
+    -- Supabase replication user
+    -- create user "supabase-replication-admin" with login replication;
+
+    -- Supabase read-only user
+    -- create role "supabase-read-only-user" with login bypassrls;
+    grant pg_read_all_data to "supabase-read-only-user";
+
+    -- Extension namespacing
+    create schema if not exists extensions;
+    create extension if not exists "uuid-ossp" with schema extensions;
+    create extension if not exists pgcrypto with schema extensions;
+    create extension if not exists pgjwt with schema extensions;
+
+    -- Set up auth roles for the developer
+    -- create role anon                nologin noinherit;
+    -- create role authenticated       nologin noinherit; -- "logged in" user: web_user, app_user, etc
+    -- create role "service-role"        nologin noinherit bypassrls; -- allow developers to create JWT's that bypass their policies
+
+    -- create user authenticator noinherit;
+    grant anon to authenticator;
+    grant authenticated to authenticator;
+    grant "service-role" to authenticator;
+    grant "supabase-admin" to authenticator;
+
+    grant usage on schema public to postgres, anon, authenticated, "service-role";
+    alter default privileges in schema public grant all on tables to postgres, anon, authenticated, "service-role";
+    alter default privileges in schema public grant all on functions to postgres, anon, authenticated, "service-role";
+    alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, "service-role";
+
+    -- Allow Extensions to be used in the API
+    grant usage on schema extensions to postgres, anon, authenticated, "service-role";
+
+    -- Set up namespacing
+    alter user "supabase-admin" SET search_path TO public, extensions;
+    -- don't include the "auth" schema
+
+    -- These are required so that the users receive grants whenever ""supabase-admin"" creates tables/function
+    alter default privileges for user "supabase-admin" in schema public grant all
+        on sequences to postgres, anon, authenticated, "service-role";
+    alter default privileges for user "supabase-admin" in schema public grant all
+        on tables to postgres, anon, authenticated, "service-role";
+    alter default privileges for user "supabase-admin" in schema public grant all
+        on functions to postgres, anon, authenticated, "service-role";
+
+    -- Set short statement/query timeouts for API roles
+    alter role anon set statement_timeout = '3s';
+    alter role authenticated set statement_timeout = '8s';
+
+    -- migrate:down
+
+
+    --##############################################################################
+    --- INIT AUTH SCHEMAS
+    --##############################################################################
+    -- migrate:up
+
+    CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION "supabase-admin";
+
+    -- Supabase super admin
+    GRANT ALL PRIVILEGES ON SCHEMA auth TO "supabase-auth-admin";
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA auth TO "supabase-auth-admin";
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA auth TO "supabase-auth-admin";
+    ALTER USER "supabase-auth-admin" SET search_path = "auth";
+
+
+
+    --##############################################################################
+    -- POST SETUP
+    --##############################################################################
+
+    -- migrate:up
+
+    ALTER ROLE "supabase-admin" SET search_path TO "\$user",public,auth,extensions;
+    ALTER ROLE postgres SET search_path TO "\$user",public,extensions;
+
+    -- Trigger for pg_cron
+    CREATE OR REPLACE FUNCTION extensions.grant_pg_cron_access()
+        RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    DECLARE
+        schema_is_cron bool;
+    BEGIN
+        schema_is_cron = (SELECT n.nspname = 'cron'
+                          FROM pg_event_trigger_ddl_commands() AS ev
+                                   LEFT JOIN pg_catalog.pg_namespace AS n
+                                             ON ev.objid = n.oid);
+
+        IF schema_is_cron
+        THEN
+            grant usage on schema cron to postgres with grant option;
+
+            alter default privileges in schema cron grant all on tables to postgres with grant option;
+            alter default privileges in schema cron grant all on functions to postgres with grant option;
+            alter default privileges in schema cron grant all on sequences to postgres with grant option;
+
+            alter default privileges for user "supabase-admin" in schema cron grant all
+                on sequences to postgres with grant option;
+            alter default privileges for user "supabase-admin" in schema cron grant all
+                on tables to postgres with grant option;
+            alter default privileges for user "supabase-admin" in schema cron grant all
+                on functions to postgres with grant option;
+
+            grant all privileges on all tables in schema cron to postgres with grant option;
+
+        END IF;
+
+    END;
+    $$;
+
+    DROP EVENT TRIGGER IF EXISTS issue_pg_cron_access;
+    CREATE EVENT TRIGGER issue_pg_cron_access ON ddl_command_end WHEN TAG in ('CREATE SCHEMA')
+    EXECUTE PROCEDURE extensions.grant_pg_cron_access();
+    COMMENT ON FUNCTION extensions.grant_pg_cron_access IS 'Grants access to pg_cron';
+
+    -- Event trigger for pg_net
+    CREATE OR REPLACE FUNCTION extensions.grant_pg_net_access()
+        RETURNS event_trigger
+        LANGUAGE plpgsql
+    AS
+    $$
+    BEGIN
+        IF EXISTS (SELECT 1
+                   FROM pg_event_trigger_ddl_commands() AS ev
+                            JOIN pg_extension AS ext
+                                 ON ev.objid = ext.oid
+                   WHERE ext.extname = 'pg_net')
+        THEN
+            IF NOT EXISTS (SELECT 1
+                           FROM pg_roles
+                           WHERE rolname = '"supabase-functions-admin"')
+            THEN
+                CREATE USER "supabase-functions-admin" NOINHERIT CREATEROLE LOGIN NOREPLICATION;
+            END IF;
+
+            GRANT USAGE ON SCHEMA net TO "supabase-functions-admin", postgres, anon, authenticated, "service-role";
+
+            ALTER function net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) SECURITY DEFINER;
+            ALTER function net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) SECURITY DEFINER;
+
+            ALTER function net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) SET search_path = net;
+            ALTER function net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) SET search_path = net;
+
+            REVOKE ALL ON FUNCTION net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) FROM PUBLIC;
+            REVOKE ALL ON FUNCTION net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) FROM PUBLIC;
+
+            GRANT EXECUTE ON FUNCTION net.http_get(url text, params jsonb, headers jsonb, timeout_milliseconds integer) TO "supabase-functions-admin", postgres, anon, authenticated, "service-role";
+            GRANT EXECUTE ON FUNCTION net.http_post(url text, body jsonb, params jsonb, headers jsonb, timeout_milliseconds integer) TO "supabase-functions-admin", postgres, anon, authenticated, "service-role";
+        END IF;
+    END;
+    $$;
+    COMMENT ON FUNCTION extensions.grant_pg_net_access IS 'Grants access to pg_net';
+
+    DO
+    $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1
+                           FROM pg_event_trigger
+                           WHERE evtname = 'issue_pg_net_access') THEN
+                CREATE EVENT TRIGGER issue_pg_net_access
+                    ON ddl_command_end
+                    WHEN TAG IN ('CREATE EXTENSION')
+                EXECUTE PROCEDURE extensions.grant_pg_net_access();
+            END IF;
+        END
+    $$;
+
+    -- Supabase dashboard user
+    -- CREATE ROLE "dashboard-user" NOSUPERUSER CREATEDB CREATEROLE REPLICATION;
+    GRANT ALL ON DATABASE postgres TO "dashboard-user";
+    GRANT ALL ON SCHEMA auth TO "dashboard-user";
+    GRANT ALL ON SCHEMA extensions TO "dashboard-user";
+    GRANT ALL ON SCHEMA storage TO "dashboard-user";
+    GRANT ALL ON ALL TABLES IN SCHEMA auth TO "dashboard-user";
+    GRANT ALL ON ALL TABLES IN SCHEMA extensions TO "dashboard-user";
+    -- GRANT ALL ON ALL TABLES IN SCHEMA storage TO "dashboard-user";
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO "dashboard-user";
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO "dashboard-user";
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA extensions TO "dashboard-user";
+    GRANT ALL ON ALL ROUTINES IN SCHEMA auth TO "dashboard-user";
+    GRANT ALL ON ALL ROUTINES IN SCHEMA storage TO "dashboard-user";
+    GRANT ALL ON ALL ROUTINES IN SCHEMA extensions TO "dashboard-user";
+
+    -- migrate:down
+
+
+    --##############################################################################
+    -- NIMBIT
+    --##############################################################################
+
+    -- ##############################################################################
+    -- DIP
+
+    -- CREATE SCHEMA
+    create schema if not EXISTS dip AUTHORIZATION dip;
+
+    -- SET SEARCH PATH
+    ALTER ROLE dip SET search_path = public,dip,extensions;
+
+
+
+    grant usage on schema auth to dip;
+
+
+    -- GRANT USAGE ON PUBLIC SCHEMA
+    grant usage on schema public to dip;
+    alter default privileges in schema public grant all on tables to dip;
+    alter default privileges in schema public grant all on functions to dip;
+    alter default privileges in schema public grant all on sequences to dip;
+
+    -- GRANT USAGE ON EXTENSIONS SCHEMA
+    grant usage on schema extensions to dip;
+    alter default privileges in schema extensions grant all on tables to dip;
+    alter default privileges in schema extensions grant all on functions to dip;
+    alter default privileges in schema extensions grant all on sequences to dip;
+
+
+
+    -- ##############################################################################
+    -- NODE RED
+
+    -- CREATE SCHEMA
+    create schema if not EXISTS node_red AUTHORIZATION nodered;
+
+    -- SET SEARCH PATH
+    ALTER ROLE nodered SET search_path = public,node_red,extensions;
+
+
+    grant usage on schema auth to nodered;
+
+    -- GRANT USAGE ON PUBLIC SCHEMA
+    grant usage on schema public to nodered;
+    alter default privileges in schema public grant all on tables to nodered;
+    alter default privileges in schema public grant all on functions to nodered;
+    alter default privileges in schema public grant all on sequences to nodered;
+
+    -- GRANT USAGE ON EXTENSIONS SCHEMA
+    grant usage on schema extensions to nodered;
+    alter default privileges in schema extensions grant all on tables to nodered;
+    alter default privileges in schema extensions grant all on functions to nodered;
+    alter default privileges in schema extensions grant all on sequences to nodered;
+
+
+    -- ##############################################################################
+    -- OCB
+
+    -- CREATE SCHEMA
+    create schema if not EXISTS ocb AUTHORIZATION prisma;
+
+
+    GRANT CREATE ON DATABASE postgres TO prisma;
+    GRANT USAGE ON SCHEMA public TO prisma;
+    GRANT USAGE ON SCHEMA extensions TO prisma;
+
+    -- GRANT USAGE ON PUBLIC SCHEMA
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO prisma;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO prisma;
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO prisma;
+
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA extensions TO prisma;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA extensions GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO prisma;
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO prisma;
+
+
+    -- SET SEARCH PATH
+    ALTER ROLE prisma SET search_path = public,ocb,extensions;
+    ALTER ROLE "rls-user" SET search_path = public,ocb,extensions;
+
+
+    GRANT "rls-user" to prisma;
+
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "prisma";
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO "prisma";
+    ALTER SCHEMA public OWNER TO prisma;
+
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "prisma";
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO "prisma";
+
+
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ocb TO "rls-user";
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA ocb TO "rls-user";
+
+
+    grant usage on schema auth to "rls-user", prisma;
+
+    grant usage on schema public to "rls-user", prisma;
+    alter default privileges in schema public grant all on tables to "rls-user", prisma;
+    alter default privileges in schema public grant all on functions to "rls-user", prisma;
+    alter default privileges in schema public grant all on sequences to "rls-user", prisma;
+
+    grant usage on schema extensions to "rls-user", prisma;
+    alter default privileges in schema extensions grant all on tables to "rls-user", prisma;
+    alter default privileges in schema extensions grant all on functions to "rls-user", prisma;
+    alter default privileges in schema extensions grant all on sequences to "rls-user", prisma;
+
+
+
+    -- ##############################################################################
+    -- RULES ENGINE
+
+    -- CREATE SCHEMA
+    create schema if not EXISTS rules_engine AUTHORIZATION "rules-engine";
+
+    -- SET SEARCH PATH
+    ALTER ROLE "rules-engine" SET search_path TO public,rules_engine,extensions;
+
+
+
+    grant usage on schema auth to "rules-engine";
+
+
+    -- GRANT USAGE ON PUBLIC SCHEMA
+    grant usage on schema public to "rules-engine";
+    alter default privileges in schema public grant all on tables to "rules-engine";
+    alter default privileges in schema public grant all on functions to "rules-engine";
+    alter default privileges in schema public grant all on sequences to "rules-engine";
+
+    -- GRANT USAGE ON EXTENSIONS SCHEMA
+    grant usage on schema extensions to "rules-engine";
+    alter default privileges in schema extensions grant all on tables to "rules-engine";
+    alter default privileges in schema extensions grant all on functions to "rules-engine";
+    alter default privileges in schema extensions grant all on sequences to "rules-engine";
+
+
+
+    --##############################################################################
+    -- TIMESCALEDB
+    --##############################################################################
+
+
+    \c tsdb;
+
+    grant pg_read_all_data to tsquery;
+
+    create extension if not exists "uuid-ossp";
+    create extension if not exists pgcrypto;
+    create extension if not exists timescaledb;
+    create extension if not exists ltree;
+    create extension if not exists timescaledb_toolkit;
+    create extension if not exists postgis;
+
+
+    CREATE SCHEMA IF NOT EXISTS _nimbit_internal;
+
+    -- CREATE TABLE IF NOT EXISTS public._cagg_metadata (
+    --     id SERIAL PRIMARY KEY,
+    --     schema_name TEXT NOT NULL,
+    --     hypertable TEXT NOT NULL,
+    --     cagg_name TEXT NOT NULL,
+    --     bucket_width INTERVAL NOT NULL,
+    --     metadata JSONB,
+    --     UNIQUE(schema_name, hypertable, cagg_name)
+    -- );
+
+    -- -- Index on schema_name and original_table for fast lookup
+    -- CREATE INDEX IF NOT EXISTS idx_cagg_schema_table ON public._cagg_metadata(schema_name, hypertable);
+
+    -- -- Index on cagg_name for fast lookup of continuous aggregates
+    -- CREATE INDEX IF NOT EXISTS idx_cagg_name ON public._cagg_metadata(cagg_name);
+
+    -- -- Function to insert or update continuous aggregate metadata
+    -- CREATE OR REPLACE FUNCTION insert_cagg_metadata(
+    --     p_schema_name TEXT,
+    --     p_hypertable TEXT,
+    --     p_cagg_name TEXT,
+    --     p_bucket_width INTERVAL,
+    --     p_metadata JSONB DEFAULT '{}'::JSONB
+    -- )
+    -- RETURNS VOID
+    -- LANGUAGE plpgsql
+    -- AS $$
+    -- BEGIN
+    --     INSERT INTO public._cagg_metadata (schema_name, hypertable, cagg_name, bucket_width, metadata)
+    --     VALUES (p_schema_name, p_hypertable, p_cagg_name, p_bucket_width, p_metadata)
+    --     ON CONFLICT (schema_name, hypertable, cagg_name)
+    --     DO UPDATE SET bucket_width = EXCLUDED.bucket_width, metadata = EXCLUDED.metadata;
+    -- END;
+    -- $$;
+
+
+    CREATE TABLE IF NOT EXISTS _nimbit_internal.timescaledb_config
+    (
+        key   TEXT PRIMARY KEY,
+        value TEXT
+    );
+
+    CREATE OR REPLACE FUNCTION _nimbit_internal.post_update()
+        RETURNS VOID
+        LANGUAGE PLPGSQL
+    AS
+    $$
+    DECLARE
+        ts_version TEXT;
+    BEGIN
+        -- Get the TimescaleDB version
+        SELECT extversion
+        INTO ts_version
+        FROM pg_extension
+        WHERE extname = 'timescaledb';
+
+        -- Insert or update the version in the config table
+        INSERT INTO _nimbit_internal.timescaledb_config (key, value)
+        VALUES ('version', ts_version)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+    END;
+    $$;
+
+
+    -- Grant USAGE on the schema to all users
+    GRANT USAGE ON SCHEMA _nimbit_internal TO PUBLIC;
+
+    -- Grant SELECT, INSERT, UPDATE on the configuration table to all users
+    GRANT SELECT ON _nimbit_internal.timescaledb_config TO PUBLIC;
+
+    -- Grant EXECUTE on the functions to all users
+    GRANT EXECUTE ON FUNCTION _nimbit_internal.set_timescaledb_version() TO PUBLIC;

@@ -1,0 +1,21 @@
+{{- if .Values.nodered.enabled -}}
+{{- if .Values.nodered.sidecar.enabled }}
+apiVersion: v1
+data:
+  flow_refresh.py: | {{ range $.Files.Lines "scripts/flow_refresh.py" }}
+    {{ . }}{{ end }}
+  {{- if .Values.nodered.sidecar.extraNodeModules }}
+  extra-node-modules.json: |-
+    {{ toJson .Values.nodered.sidecar.extraNodeModules }}
+  {{- end }}
+kind: ConfigMap
+metadata:
+  name: {{ include "nimbit-cloud.node-red.sidecarConfigMapName" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{ .Values.nodered.sidecar.env.label}}: {{ .Values.nodered.sidecar.env.label_value | quote}}
+{{- end }}
+{{- end }}

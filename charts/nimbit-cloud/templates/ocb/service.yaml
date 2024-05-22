@@ -1,0 +1,26 @@
+{{- if .Values.ocb.enabled -}}
+{{ if .Values.ocb.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbit-cloud.ocb.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.ocb.labels" . | nindent 4 }}
+  {{- with .Values.ocb.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.ocb.service.type }}
+  ports:
+    - port: {{ .Values.ocb.service.port }}
+      targetPort: {{ .Values.ocb.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "nimbit-cloud.ocb.selectorLabels"  . | nindent 4 }}
+  {{- end -}}
+  {{- end -}}

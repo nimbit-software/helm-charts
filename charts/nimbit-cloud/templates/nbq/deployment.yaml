@@ -1,0 +1,118 @@
+{{- if .Values.nbq.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nimbit-cloud.nbq.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.nbq.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.nbq.autoscaling.enabled }}
+  replicas: {{ .Values.nbq.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nimbit-cloud.nbq.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.nbq.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nimbit-cloud.nbq.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nbq.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      {{- toYaml .Values.nbq.volumes | default "" | nindent 8 }}
+      serviceAccountName: {{ include "nimbit-cloud.nbq.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.nbq.podSecurityContext | nindent 8 }}
+
+      initContainers:
+        - name: init-db
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: {{ default "nimbit-tsdb-ha" .Values.ocb.environment.DB_HOST | quote }}
+            - name: DB_USER
+              value: super-user
+            - name: DB_PORT
+              value: {{ default "5432" .Values.ocb.environment.DB_PORT | quote }}
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+              echo "Waiting for database to start..."
+              sleep 2
+              done
+            - echo "Database is ready"
+
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.nbq.securityContext | nindent 12 }}
+          image: "{{ .Values.nbq.image.repository }}:{{ .Values.nbq.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.nbq.image.pullPolicy }}
+          env:
+            - name: DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.database.name }}-pguser-tsdb
+                  key: uri
+            {{- range $key, $value := .Values.nbq.environment }}
+            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+              {{- if kindIs "map" $value }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secretKeyRef.name | quote }}
+                  key: {{ $value.secretKeyRef.key | quote }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+            - name: NBQ_DATA_POSTGRES_URL
+              value: $(DB_URI)?sslmode=$(DB_SSL)
+            - name: NBQ_SECURITY_GOTRUE_SECRET
+              valueFrom:
+                secretKeyRef:
+                {{- if .Values.supabase.secret.jwt.secretRef }}
+                  name: {{ .Values.supabase.secret.jwt.secretRef }}
+                  key: {{ .Values.supabase.secret.jwt.secretRefKey.secret | default "secret" }}
+                            {{- else }}
+                  name: {{ include "supabase.secret.jwt" . }}
+                  key: secret
+               {{- end }}
+          ports:
+            - name: server
+              containerPort: {{ .Values.nbq.server.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.nbq.health.liveness.path }}
+              port: server
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.nbq.health.readiness.path }}
+              port: server
+          resources:
+            {{- toYaml .Values.nbq.resources | nindent 12 }}
+      {{- with .Values.nbq.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nbq.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nbq.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

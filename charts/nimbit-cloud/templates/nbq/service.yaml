@@ -1,0 +1,26 @@
+{{- if .Values.nbq.enabled -}}
+{{ if .Values.nbq.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbit-cloud.nbq.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.nbq.labels" . | nindent 4 }}
+  {{- with .Values.nbq.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}    
+spec:
+  type: {{ .Values.nbq.service.type }}
+  ports:
+    - port: {{ .Values.nbq.service.port }}
+      targetPort: {{ .Values.nbq.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "nimbit-cloud.nbq.selectorLabels" . | nindent 4 }}
+  {{- end -}}
+  {{- end -}}

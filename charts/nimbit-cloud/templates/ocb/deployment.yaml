@@ -1,0 +1,114 @@
+{{- if .Values.ocb.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nimbit-cloud.ocb.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.ocb.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.ocb.autoscaling.enabled }}
+  replicas: {{ .Values.ocb.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nimbit-cloud.ocb.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.ocb.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nimbit-cloud.ocb.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.ocb.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      {{- toYaml .Values.ocb.volumes | default "" | nindent 8 }}
+      serviceAccountName: {{ include "nimbit-cloud.ocb.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.ocb.podSecurityContext | nindent 8 }}
+
+      initContainers:
+        - name: init-db
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: {{ default "nimbit-tsdb-ha" .Values.ocb.environment.DB_HOST | quote }}
+            - name: DB_USER
+              value: super-user
+            - name: DB_PORT
+              value: {{ default "5432" .Values.ocb.environment.DB_PORT | quote }}
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+              echo "Waiting for database to start..."
+              sleep 2
+              done
+            - echo "Database is ready"
+
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.ocb.securityContext | nindent 12 }}
+          image: "{{ .Values.ocb.image.repository }}:{{ .Values.ocb.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.ocb.image.pullPolicy }}
+          env:
+           {{- range $key, $value := .Values.ocb.environment }}
+            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+              {{- if kindIs "map" $value }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secretKeyRef.name | quote }}
+                  key: {{ $value.secretKeyRef.key | quote }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+            - name: RLS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nimbit-cloud.ocb.rls_uri" . }}
+                  key: {{ default "uri" .Values.ocb.db.rls.secretKey | quote }}
+            - name: PRISMA_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nimbit-cloud.ocb.prisma" . }}
+                  key: {{ default "uri" .Values.ocb.db.prisma.secretKey | quote }}
+            - name: PRISMA_SEED_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nimbit-cloud.ocb.prisma" . }}
+                  key: "password"
+            - name: DATABASE_URL
+              value: $(RLS_URI)?schema=$(DB_SCHEMA)&sslmode=$(DB_SSL)
+            - name: PRISMA_MIGRATION_URL
+              value: $(PRISMA_URI)?schema=$(DB_SCHEMA)&sslmode=$(DB_SSL)
+          ports:
+            - name: server
+              containerPort: {{ .Values.ocb.servicePort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.ocb.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.ocb.volumeMounts | default "" | nindent 12 }}
+      {{- with .Values.ocb.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ocb.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ocb.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

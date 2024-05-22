@@ -1,0 +1,221 @@
+{{- if .Values.tsdb.enabled -}}
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ .Values.global.database.name }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.tsdb.labels" . | nindent 4 }}
+spec:
+  image: {{ .Values.tsdb.image }}
+  imagePullPolicy: {{ .Values.tsdb.imagePullPolicy }}
+  postgresVersion: {{ .Values.tsdb.postgresVersion }}
+  instances:
+    - name: {{ .Values.tsdb.instance.name }}
+      replicas: {{ .Values.tsdb.instance.replicas }}
+      resources:
+        limits:
+          cpu: {{ .Values.tsdb.instance.resources.limits.cpu }}
+          memory: {{ .Values.tsdb.instance.resources.limits.memory }}
+      walVolumeClaimSpec:
+        accessModes:
+          - 'ReadWriteOnce'
+        resources:
+          requests:
+            storage: {{ .Values.tsdb.instance.walVolumeClaimSpec.resources.requests.storage }}
+      dataVolumeClaimSpec:
+        accessModes:
+          - 'ReadWriteOnce'
+        resources:
+          requests:
+            storage: {{ .Values.tsdb.instance.dataVolumeClaimSpec.resources.requests.storage }}
+  backups:
+    pgbackrest:
+      image: {{ .Values.tsdb.backups.pgbackrest.image }}
+      repos:
+        - name: {{ .Values.tsdb.backups.pgbackrest.repo.name }}
+          volume:
+            volumeClaimSpec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: {{ .Values.tsdb.backups.pgbackrest.repo.volume.volumeClaimSpec.resources.requests.storage }}
+
+  databaseInitSQL:
+    key: {{ .Values.tsdb.databaseInitSQL.key }}
+    name: {{ .Values.tsdb.databaseInitSQL.name }}
+
+  users:
+    - name: super-user
+      password:
+        type: AlphaNumeric
+      options: "SUPERUSER"
+      databases:
+        - "postgres"
+        - "tsdb"
+
+    #####################################################################
+    # SUPABASE USERS
+    #####################################################################
+
+    - name: "supabase-functions-admin"
+      password:
+        type: AlphaNumeric
+      options: "LOGIN NOREPLICATION"
+      databases:
+        - "postgres"
+
+    - name: "supabase-admin"
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "superuser createdb createrole replication bypassrls"
+
+    - name: "supabase-replication-admin"
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "login replication"
+
+    - name: supabase-read-only-user
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "login bypassrls"
+
+    - name: authenticator
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "noinherit"
+
+    - name: supabase-auth-admin
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "NOINHERIT CREATEROLE LOGIN NOREPLICATION"
+
+    - name: "supabase-storage-admin"
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "NOINHERIT CREATEROLE LOGIN NOREPLICATION"
+
+    - name: dashboard-user
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "NOSUPERUSER CREATEDB CREATEROLE REPLICATION"
+
+    - name: anon
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: " nologin noinherit"
+
+    - name: authenticated
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: " nologin noinherit"
+
+    - name: "service-role"
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "nologin noinherit bypassrls"
+
+    #####################################################################
+    # TIMESCALEDB USERS
+    #####################################################################
+
+    - name: "tsdb"
+      password:
+        type: AlphaNumeric
+      databases:
+        - "tsdb"
+      options: "SUPERUSER"
+
+    - name: "tsquery"
+      password:
+        type: AlphaNumeric
+      databases:
+        - "tsdb"
+      options: "LOGIN"
+
+    #########################################
+    # OCB - OMNI-CHANNEL BACKEND
+    #########################################
+    - name: prisma
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "LOGIN"
+    - name: rls-user
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "LOGIN"
+    #########################################
+    # rules-engine
+    #########################################
+    - name: nodered
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "LOGIN"
+    #########################################
+    # DIP - DATA INGESTION PIPELINE
+    #########################################
+    - name: dip
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "LOGIN"
+    #########################################
+    # RULES ENGINE
+    #########################################
+    - name: rules-engine
+      password:
+        type: AlphaNumeric
+      databases:
+        - "postgres"
+      options: "LOGIN"
+
+
+  patroni:
+    dynamicConfiguration:
+      synchronous_mode: {{ .Values.tsdb.patroni.dynamicConfiguration.synchronous_mode }}
+      postgresql:
+        parameters:
+{{- range $key, $value := .Values.tsdb.patroni.dynamicConfiguration.postgresql.parameters }}
+          {{ $key }}: {{ $value | quote }}
+{{- end }}
+
+  proxy:
+    pgBouncer:
+      image: {{ .Values.tsdb.proxy.pgBouncer.image }}
+
+  monitoring:
+    pgmonitor:
+      exporter:
+        image: {{ .Values.tsdb.monitoring.pgmonitor.exporter.image }}
+ 
+  {{- end}} 

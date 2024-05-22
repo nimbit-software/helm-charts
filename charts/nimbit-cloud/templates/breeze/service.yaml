@@ -1,0 +1,26 @@
+{{- if .Values.breeze.service.enabled -}}
+{{ if .Values.dip.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbit-cloud.breeze.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.breeze.labels" . | nindent 4 }}
+  {{- with .Values.breeze.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.dip.service.type }}
+  ports:
+    - port: {{ .Values.dip.service.port }}
+      targetPort: {{ .Values.breeze.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "nimbit-cloud.breeze.selectorLabels"  . | nindent 4 }}
+  {{- end -}}
+  {{- end -}}

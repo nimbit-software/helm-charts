@@ -1,0 +1,26 @@
+{{- if .Values.autots.enabled -}}
+{{- if .Values.autots.service.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbit-cloud.autots.fullname" . }}
+  labels:
+    nimbit.cloud/environment: {{ include "nimbit-cloud.deployment.environment" . }}
+    nimbit.cloud/tenant-type: {{ include "nimbit-cloud.tenant.type" . }}
+    nimbit.cloud/tenant-name: {{ include "nimbit-cloud.tenant.name" . }}
+    {{- include "nimbit-cloud.autots.labels" . | nindent 4 }}
+  {{- with .Values.autots.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.ocb.service.type }}
+  ports:
+    - port: {{ .Values.ocb.service.port }}
+      targetPort: {{ .Values.autots.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "nimbit-cloud.autots.selectorLabels"  . | nindent 4 }}
+  {{- end -}}
+  {{- end -}}
