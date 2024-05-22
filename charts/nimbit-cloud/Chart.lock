@@ -1,6 +1,0 @@
-dependencies:
-- name: supabase
-  repository: https://nimbit-software.github.io/helm-charts/
-  version: 0.1.2
-digest: sha256:7084a8f14dbcd07517b40ca6102c6c16024d216b265e5d0297741b58085f2ab2
-generated: "2024-05-17T07:34:17.4559821+02:00"
