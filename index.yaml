@@ -63,6 +63,21 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/javaapp-0.1.0/javaapp-0.1.0.tgz
     version: 0.1.0
+  nimbit-cloud:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2024-05-22T16:19:12.276646574Z"
+    dependencies:
+    - name: supabase
+      repository: file://../supabase
+      version: 0.1.2
+    description: Nimbit cloud deployment
+    digest: f9770eb25dfc58e34ba219b47dc13bd79e58399be5995a930f056b1b5a86057e
+    name: nimbit-cloud
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/nimbit-cloud-0.1.0/nimbit-cloud-0.1.0.tgz
+    version: 0.1.0
   node:
   - apiVersion: v1
     appVersion: "1.0"
@@ -105,4 +120,4 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.2/supabase-0.1.2.tgz
     version: 0.1.2
-generated: "2024-05-16T15:20:03.59208724Z"
+generated: "2024-05-22T16:19:12.276662223Z"
