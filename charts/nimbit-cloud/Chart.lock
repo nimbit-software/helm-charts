@@ -1,0 +1,6 @@
+dependencies:
+- name: supabase
+  repository: file://../supabase
+  version: 0.1.2
+digest: sha256:d2b2eda2652fb6ea5dffabb3299067f50aa6a4d1ed322e54dc1c3bb7e4239502
+generated: "2024-05-22T18:17:49.2276808+02:00"
