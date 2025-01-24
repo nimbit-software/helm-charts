@@ -65,6 +65,20 @@ entries:
     version: 0.1.0
   nimbit-cloud:
   - apiVersion: v2
+    appVersion: 1.16.1
+    created: "2025-01-24T15:18:51.324475595Z"
+    dependencies:
+    - name: supabase
+      repository: file://../supabase
+      version: 0.1.3
+    description: Nimbit cloud deployment
+    digest: 16af1a1fc19b9f989e6f8a484ce8b066b1daaabf659e099e420a7af383898667
+    name: nimbit-cloud
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/nimbit-cloud-0.1.1/nimbit-cloud-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
     appVersion: 1.16.0
     created: "2024-05-22T16:19:12.276646574Z"
     dependencies:
@@ -111,6 +125,16 @@ entries:
     version: 0.1.0
   supabase:
   - apiVersion: v2
+    created: "2025-01-24T15:18:51.444837294Z"
+    description: The open source Firebase alternative.
+    digest: 66295a3eaba38858a9b2073ce58feaa57ab3409d56ac606ab189bb201b3328b0
+    icon: https://avatars.githubusercontent.com/u/54469796?s=280&v=4
+    name: supabase
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.3/supabase-0.1.3.tgz
+    version: 0.1.3
+  - apiVersion: v2
     created: "2024-05-16T15:20:03.592023089Z"
     description: The open source Firebase alternative.
     digest: 3a9b6c65c35b603058154e8d1179cd7ffb95e7b8cf5403829205af62f1aedc74
@@ -130,4 +154,4 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.2-1/supabase-0.1.2-1.tgz
     version: 0.1.2-1
-generated: "2025-01-24T14:39:40.881792417Z"
+generated: "2025-01-24T15:18:51.444866689Z"
