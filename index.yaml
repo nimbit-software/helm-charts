@@ -120,4 +120,14 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.2/supabase-0.1.2.tgz
     version: 0.1.2
-generated: "2024-05-22T16:19:12.276662223Z"
+  - apiVersion: v2
+    created: "2025-01-24T14:39:40.881774163Z"
+    description: The open source Firebase alternative.
+    digest: c5a62679d54cee6d92997971d4501569ded81173830d8f1048a7210095b347c2
+    icon: https://avatars.githubusercontent.com/u/54469796?s=280&v=4
+    name: supabase
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.2-1/supabase-0.1.2-1.tgz
+    version: 0.1.2-1
+generated: "2025-01-24T14:39:40.881792417Z"
