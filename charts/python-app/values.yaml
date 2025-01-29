@@ -68,6 +68,7 @@ ingress:
 
 
 certificate:
+  enabled: false
   name: query-allreco-nimbit
   secret: tls-query-allreco-nimbit
   commonName: query.allreco.nimbit.de
@@ -78,23 +79,9 @@ certificate:
     name: le-clusterissuer
 
 
-app:
-  env:  # env variables  as key value pairs
-    test : value 
-  envSecrets:  # secret values multiple secrets are possible
-    - name: secret1
-      values:
-        - key: username
-          value: myusername1
-        - key: password
-          value: mypassword1
-    - name: secret2
-      values:
-        - key: username
-          value: myusername2
-        - key: password
-          value: mypassword2
-
+env: []
+envFromConfigMap: []
+envFromSecret: []
 
 
 resources: {}

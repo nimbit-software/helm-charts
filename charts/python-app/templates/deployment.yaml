@@ -36,18 +36,29 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            {{- range $key, $value := .Values.app.env }}
-            - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
-              value: {{ $value | quote }}
+            {{- if .Values.env }}
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
             {{- end }}
-            {{- range $secret := .Values.app.envSecrets }}
-              {{- range $value := $secret.values }}
-            - name: {{ $value.key }}
+            {{- end }}
+            {{- if .Values.envFromConfigMap }}
+            {{- range .Values.envFromConfigMap }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.envFromSecret }}
+            {{- range .Values.envFromSecret }}
+            - name: {{ .name }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ $secret.name }}
-                  key: {{ $value.key }}
-              {{- end }}
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
             {{- end }}
           ports:
             - name: server
