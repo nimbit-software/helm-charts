@@ -44,6 +44,16 @@ entries:
   go-app:
   - apiVersion: v2
     appVersion: 0.0.1
+    created: "2025-01-29T17:17:13.485060565Z"
+    description: golang deployment chart.
+    digest: cb881fbc95a7dc0e930d00bc1bc6a64832512015423a4082b0a439d9e265ca06
+    name: go-app
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/go-app-0.1.2/go-app-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 0.0.1
     created: "2023-07-12T15:58:23.404711415Z"
     description: golang deployment chart.
     digest: fa309e8ef2a98a44b80d1f4396cfb869d278401c0ea4c165ceb191ca14e20c2d
@@ -151,6 +161,16 @@ entries:
   python-app:
   - apiVersion: v2
     appVersion: 0.0.1
+    created: "2025-01-29T17:17:13.625372882Z"
+    description: Python deployment chart. Tested with FastApi
+    digest: 3da8d7f4a2c2bfed52c00d6c7031a48c62edaa9720bd2eb590a9b26673db2c12
+    name: python-app
+    type: application
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/python-app-0.1.2/python-app-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 0.0.1
     created: "2023-05-12T06:31:29.172780123Z"
     description: Python deployment chart. Tested with FastApi
     digest: 9e554d0dc15baff25d99232911a5e433345060eea437f2b76e1598af52a33d85
@@ -220,4 +240,4 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.2-1/supabase-0.1.2-1.tgz
     version: 0.1.2-1
-generated: "2025-01-29T13:27:54.20737742Z"
+generated: "2025-01-29T17:17:13.625426943Z"
