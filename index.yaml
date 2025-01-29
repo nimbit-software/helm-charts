@@ -123,6 +123,15 @@ entries:
   node:
   - apiVersion: v1
     appVersion: "1.0"
+    created: "2025-01-29T13:21:53.023759279Z"
+    description: A nimbit Helm chart for node applications
+    digest: 6172004243b886687ce7132cc9d0fa47b0ca42c95374143e944036c8ce7b560e
+    name: node
+    urls:
+    - https://github.com/nimbit-software/helm-charts/releases/download/node-0.0.2/node-0.0.2.tgz
+    version: 0.0.2
+  - apiVersion: v1
+    appVersion: "1.0"
     created: "2022-12-12T12:04:51.627679298Z"
     description: A nimbit Helm chart for node applications
     digest: 41b40d23f51e684794a925a2210c7e4bba73b7195bd8cef4a1e0dca8299c4be7
@@ -202,4 +211,4 @@ entries:
     urls:
     - https://github.com/nimbit-software/helm-charts/releases/download/supabase-0.1.2-1/supabase-0.1.2-1.tgz
     version: 0.1.2-1
-generated: "2025-01-29T07:12:29.804325819Z"
+generated: "2025-01-29T13:21:53.02379211Z"
