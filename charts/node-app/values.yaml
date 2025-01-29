@@ -68,6 +68,7 @@ ingress:
 
 ## Certificate settings
 certificate:
+  enabled: true
   name: query-allreco-nimbit
   secret: tls-query-allreco-nimbit
   commonName: query.allreco.nimbit.de
