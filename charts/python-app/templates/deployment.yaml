@@ -36,12 +36,6 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            {{- if .Values.env }}
-            {{- range .Values.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
-            {{- end }}
             {{- if .Values.envFromConfigMap }}
             {{- range .Values.envFromConfigMap }}
             - name: {{ .name }}
@@ -58,6 +52,12 @@ spec:
                 secretKeyRef:
                   name: {{ .secretName }}
                   key: {{ .key }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.env }}
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
             {{- end }}
             {{- end }}
           ports:
