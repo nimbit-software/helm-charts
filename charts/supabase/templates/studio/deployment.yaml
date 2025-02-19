@@ -35,6 +35,24 @@ spec:
           image: "{{ .Values.studio.image.repository }}:{{ .Values.studio.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.studio.image.pullPolicy }}
           env:
+            {{- if .Values.envFromConfigMap }}
+            {{- range .Values.envFromConfigMap }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.envFromSecret }}
+            {{- range .Values.envFromSecret }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
             {{- range $key, $value := .Values.studio.environment }}
             - name: {{ $key }}
               value: {{ $value | quote }}

@@ -34,6 +34,24 @@ spec:
           image: postgres:15-alpine
           imagePullPolicy: IfNotPresent
           env:
+            {{- if .Values.envFromConfigMap }}
+            {{- range .Values.envFromConfigMap }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.envFromSecret }}
+            {{- range .Values.envFromSecret }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
             - name: DB_HOST
               {{- if .Values.db.enabled }}
               value: {{ include "supabase.db.fullname" . | quote }}
@@ -62,6 +80,24 @@ spec:
             - echo "Database is ready"
         {{- if .Values.minio.enabled }}
         - env:
+          {{- if .Values.envFromConfigMap }}
+            {{- range .Values.envFromConfigMap }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .configMapName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.envFromSecret }}
+            {{- range .Values.envFromSecret }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
             - name: MINIO_ROOT_USER
               valueFrom:
                 secretKeyRef:

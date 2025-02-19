@@ -170,6 +170,9 @@ db:
   # Additional migration scripts can be defined here
   config: {}
 
+  envFromConfigMap: []
+  envFromSecret: []
+
 # Studio Application
 studio:
   # Enable studio provisioning
@@ -244,6 +247,8 @@ studio:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []  
 
 # Auth Service
 auth:
@@ -418,6 +423,8 @@ rest:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []  
 
 # Realtime Service
 realtime:
@@ -499,6 +506,8 @@ realtime:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # Meta Service
 meta:
@@ -574,6 +583,8 @@ meta:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # Storage Service
 storage:
@@ -669,6 +680,8 @@ storage:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # imgproxy
 imgproxy:
@@ -749,6 +762,8 @@ imgproxy:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # Kong
 kong:
@@ -928,6 +943,8 @@ analytics:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # Vector
 vector:
@@ -995,6 +1012,8 @@ vector:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # Functions
 functions:
@@ -1070,6 +1089,8 @@ functions:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
 
 # minio
 minio:
@@ -1146,3 +1167,5 @@ minio:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  envFromConfigMap: []
+  envFromSecret: []
